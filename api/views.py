@@ -3,7 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 from .odoo_client import search_read, create_record, update_record
 from .utils import validate_json, validate_required_params
-
+from .models import OdooInstance
 
 def get_records(request):
     """
@@ -94,3 +94,35 @@ def delete_record_view(request):
             return JsonResponse({'error': str(e)}, status=500)
 
     return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+#crear tokern de autenticacion para instancia de odoo
+@csrf_exempt
+def register_odoo_instance(request):
+    """ Endpoint para registrar una nueva instancia de Odoo """
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body.decode("utf-8"))
+            name = data.get("name")
+            url = data.get("url")
+            database = data.get("database")
+            username = data.get("username")
+            password = data.get("password")
+
+            if not all([name, url, database, username, password]):
+                return JsonResponse({"error": "Faltan parámetros"}, status=400)
+
+            instance, created = OdooInstance.objects.get_or_create(
+                name=name,
+                defaults={"url": url, "database": database, "username": username, "password": password}
+            )
+
+            if not created:
+                return JsonResponse({"error": "La instancia ya existe"}, status=400)
+
+            instance.generate_token()  # Generar token automáticamente
+            return JsonResponse({"success": True, "token": instance.token})
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Método no permitido"}, status=405)
