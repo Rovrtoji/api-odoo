@@ -1,9 +1,10 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
-from .odoo_client import search_read, create_record, update_record
+from .odoo_client import search_read, create_record, update_record,delete_record
 from .utils import validate_json, validate_required_params
 from .models import OdooInstance
+from django.core.cache import cache
 
 def get_records(request):
     """
@@ -13,47 +14,94 @@ def get_records(request):
     - domain: lista JSON con condiciones (opcional, por defecto [])
     - fields: lista JSON con los campos a recuperar (opcional, por defecto [])
     """
-    model = request.GET.get('model')
-    domain = request.GET.get('domain', '[]')  # Si no hay domain, por defecto es []
-    fields = request.GET.get('fields', '[]')  # Si no hay fields, por defecto es []
+    if request.method == 'GET':
+        try:
+            # obtener token de la cabecera
+            token = request.headers.get("Authorization")
+            if not token:
+                return JsonResponse({'error': 'No token provided.'}, status=401)
 
-    try:
-        domain = eval(domain)  # Convertir string JSON a lista Python
-        fields = eval(fields)
+            instance = cache.get(f"odoo_instance_{token}")
+            if not instance:
+                try:
+                    instance = OdooInstance.objects.get(token=token)
+                    #guardamos la instancia en Redis para acelerar futuras solicitudes
+                    cache.set(f"odoo_instance_{token}", instance, timeout=600)  # Cache por 10 minutos
+                except OdooInstance.DoesNotExist:
+                    return JsonResponse({"error": "Token inválido"}, status=401)
+            model = request.GET.get('model')
+            domain = request.GET.get('domain', '[]')  # Si no hay domain, por defecto es []
+            fields = request.GET.get('fields', '[]')  # Si no hay fields, por defecto es []
 
-        if not model:
-            return JsonResponse({'error': 'El parámetro "model" es obligatorio'}, status=400)
+            if not model:
+                return JsonResponse({'error': 'El parámetro "model" es obligatorio'}, status=400)
 
-        data = search_read(model, domain, fields)
-        return JsonResponse({'data': data}, safe=False)
+            #convertimos los parametrros JSON a lista python
+            domain = json.loads(domain)
+            fields = json.loads(fields)
+            data = search_read(instance.url, instance.database, instance.username, instance.password, model, domain, fields)
+            return JsonResponse({"data": data}, safe=False)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+    return JsonResponse({"error": "Método no permitido"}, status=405)
 
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
+
 @csrf_exempt
 def create_record_view(request):
-    """ Endpoint para crear un registro en Odoo con validaciones mejoradas """
+    """ Endpoint para crear un registro en Odoo usando autenticación dinámica """
     if request.method == "POST":
-        data = validate_json(request)
-        if isinstance(data, JsonResponse):
-            return data
+        token = request.headers.get("Authorization")
 
-        missing_params = validate_required_params(data, ["model", "values"])
-        if missing_params:
-            return missing_params
+        if not token:
+            return JsonResponse({"error": "Falta el token en la cabecera Authorization"}, status=401)
 
-        model, values = data["model"], data["values"]
-        record_id = create_record(model, values)
+        # 🔹 Obtener la instancia desde Redis o la BD
+        instance = cache.get(f"odoo_instance_{token}")
 
-        if record_id:
-            return JsonResponse({'success': True, 'record_id': record_id})
-        return JsonResponse({'error': 'No se pudo crear el registro.'}, status=500)
+        if not instance:
+            try:
+                instance = OdooInstance.objects.get(token=token)
+                cache.set(f"odoo_instance_{token}", instance, timeout=600)
+            except OdooInstance.DoesNotExist:
+                return JsonResponse({"error": "Token inválido"}, status=401)
 
-    return JsonResponse({'error': 'Método no permitido'}, status=405)
+        try:
+            data = json.loads(request.body.decode("utf-8"))
+            model = data.get("model")
+            values = data.get("values", {})
+
+            if not model or not values:
+                return JsonResponse({"error": 'Faltan parámetros "model" o "values"'}, status=400)
+
+            # 🔹 Llamar a Odoo con conexión dinámica
+            record_id = create_record(instance.url, instance.database, instance.username, instance.password, model, values)
+
+            return JsonResponse({"success": True, "record_id": record_id})
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Método no permitido"}, status=405)
 
 @csrf_exempt
 def update_record_view(request):
-    """ Endpoint para actualizar un registro en Odoo """
+    """ Endpoint para actualizar un registro en Odoo usando autenticación dinámica """
     if request.method == "PUT":
+        token = request.headers.get("Authorization")
+
+        if not token:
+            return JsonResponse({"error": "Falta el token en la cabecera Authorization"}, status=401)
+
+        # 🔹 Obtener la instancia desde Redis o la BD
+        instance = cache.get(f"odoo_instance_{token}")
+
+        if not instance:
+            try:
+                instance = OdooInstance.objects.get(token=token)
+                cache.set(f"odoo_instance_{token}", instance, timeout=600)
+            except OdooInstance.DoesNotExist:
+                return JsonResponse({"error": "Token inválido"}, status=401)
+
         try:
             data = json.loads(request.body.decode("utf-8"))
             model = data.get("model")
@@ -61,39 +109,54 @@ def update_record_view(request):
             values = data.get("values", {})
 
             if not model or not record_id or not values:
-                return JsonResponse({'error': 'Faltan parámetros "model", "id" o "values"'}, status=400)
+                return JsonResponse({"error": 'Faltan parámetros "model", "id" o "values"'}, status=400)
 
-            success = update_record(model, record_id, values)
-            return JsonResponse({'success': success})
+            # 🔹 Llamar a Odoo con conexión dinámica
+            success = update_record(instance.url, instance.database, instance.username, instance.password, model, record_id, values)
+
+            return JsonResponse({"success": success})
 
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            return JsonResponse({"error": str(e)}, status=500)
 
-    return JsonResponse({'error': 'Método no permitido'}, status=405)
+    return JsonResponse({"error": "Método no permitido"}, status=405)
 @csrf_exempt
 def delete_record_view(request):
-    """ Endpoint para eliminar un registro en Odoo """
+    """ Endpoint para eliminar un registro en Odoo usando autenticación dinámica """
     if request.method == "DELETE":
+        token = request.headers.get("Authorization")
+
+        if not token:
+            return JsonResponse({"error": "Falta el token en la cabecera Authorization"}, status=401)
+
+        # 🔹 Obtener la instancia desde Redis o la BD
+        instance = cache.get(f"odoo_instance_{token}")
+
+        if not instance:
+            try:
+                instance = OdooInstance.objects.get(token=token)
+                cache.set(f"odoo_instance_{token}", instance, timeout=600)
+            except OdooInstance.DoesNotExist:
+                return JsonResponse({"error": "Token inválido"}, status=401)
+
         try:
             data = json.loads(request.body.decode("utf-8"))
             model = data.get("model")
             record_id = data.get("id")
 
             if not model or not record_id:
-                return JsonResponse({'error': 'Faltan parámetros "model" o "id"'}, status=400)
+                return JsonResponse({"error": 'Faltan parámetros "model" o "id"'}, status=400)
 
-            from .odoo_client import delete_record  # Importación aquí para evitar errores circulares
-            success = delete_record(model, record_id)
+            # 🔹 Llamar a Odoo con conexión dinámica
+            success = delete_record(instance.url, instance.database, instance.username, instance.password, model, record_id)
 
-            if success:
-                return JsonResponse({'success': True, 'message': f'Registro {record_id} eliminado con éxito.'})
-            else:
-                return JsonResponse({'error': f'No se pudo eliminar el registro {record_id}.'}, status=500)
+            return JsonResponse({"success": success})
 
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            return JsonResponse({"error": str(e)}, status=500)
 
-    return JsonResponse({'error': 'Método no permitido'}, status=405)
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+
 
 #crear tokern de autenticacion para instancia de odoo
 @csrf_exempt

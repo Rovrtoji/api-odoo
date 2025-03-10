@@ -1,40 +1,51 @@
 import xmlrpc.client
-import os
-from dotenv import load_dotenv
 
-# Cargar variables de entorno
-load_dotenv()
 
-ODOO_URL = os.getenv('ODOO_URL', 'http://localhost:8069')
-ODOO_DB = os.getenv('ODOO_DB', 'internas')
-ODOO_USER = os.getenv('ODOO_USER', 'ricardo')
-ODOO_PASSWORD = os.getenv('ODOO_PASSWORD', 'Comsys')
+def authenticate(odoo_url, db, username, password):
+    """Autenticarse en Odoo y obtener el UID dinámico."""
+    common = xmlrpc.client.ServerProxy(f'{odoo_url}/xmlrpc/2/common')
+    uid = common.authenticate(db, username, password, {})
+    if not uid:
+        raise Exception("Error de autenticación en Odoo")
+    return uid
 
-# Conectar con el servicio XML-RPC
-common = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/common')
-uid = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASSWORD, {})
 
-if uid:
-    print(f'Conectado a Odoo con UID: {uid}')
-else:
-    print('Error de autenticación en Odoo')
+def search_read(odoo_url, db, username, password, model, domain=[], fields=[]):
+    """Consulta registros en Odoo con conexión dinámica."""
+    uid = authenticate(odoo_url, db, username, password)
+    models = xmlrpc.client.ServerProxy(f'{odoo_url}/xmlrpc/2/object')
 
-# Conectar con los modelos
-models = xmlrpc.client.ServerProxy(f'{ODOO_URL}/xmlrpc/2/object')
+    return models.execute_kw(
+        db, uid, password, model, 'search_read',
+        [domain], {'fields': fields}
+    )
 
-def search_read(model, domain, fields):
-    """Consulta registros en Odoo."""
-    return models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD, model, 'search_read', [domain], {'fields': fields})
 
-def create_record(model, values):
-    """Crea un registro en Odoo."""
-    return models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD, model, 'create', [values])
+def create_record(odoo_url, db, username, password, model, values):
+    """Crea un registro en Odoo con conexión dinámica."""
+    uid = authenticate(odoo_url, db, username, password)
+    models = xmlrpc.client.ServerProxy(f'{odoo_url}/xmlrpc/2/object')
 
-def update_record(model, record_id, values):
-    """Actualiza un registro en Odoo."""
-    return models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD, model, 'write', [[record_id], values])
+    return models.execute_kw(
+        db, uid, password, model, 'create', [values]
+    )
 
-def delete_record(model, record_id):
-    """Elimina un registro en Odoo."""
-    return models.execute_kw(ODOO_DB, uid, ODOO_PASSWORD, model, 'unlink', [[record_id]])
 
+def update_record(odoo_url, db, username, password, model, record_id, values):
+    """Actualiza un registro en Odoo con conexión dinámica."""
+    uid = authenticate(odoo_url, db, username, password)
+    models = xmlrpc.client.ServerProxy(f'{odoo_url}/xmlrpc/2/object')
+
+    return models.execute_kw(
+        db, uid, password, model, 'write', [[record_id], values]
+    )
+
+
+def delete_record(odoo_url, db, username, password, model, record_id):
+    """Elimina un registro en Odoo con conexión dinámica."""
+    uid = authenticate(odoo_url, db, username, password)
+    models = xmlrpc.client.ServerProxy(f'{odoo_url}/xmlrpc/2/object')
+
+    return models.execute_kw(
+        db, uid, password, model, 'unlink', [[record_id]]
+    )
