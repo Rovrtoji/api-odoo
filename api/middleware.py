@@ -1,6 +1,7 @@
 from django.core.cache import cache
 from django.http import JsonResponse
 from .models import OdooInstance
+import json
 
 class OdooInstanceMiddleware:
     """ Middleware para autenticar instancias de Odoo con tokens y caché en Redis """
@@ -21,7 +22,16 @@ class OdooInstanceMiddleware:
             try:
                 instance = OdooInstance.objects.get(token=token)
                 # 🔹 Guardamos la instancia en Redis para acelerar futuras solicitudes
-                cache.set(f"odoo_instance_{token}", instance, timeout=600)  # Cache por 10 minutos
+
+                instance_data = {
+                    "url": instance.url,
+                    "database": instance.database,
+                    "username": instance.username,
+                    "password": instance.password,
+                }
+
+                cache.set(f"odoo_instance_{instance.token}", json.dumps(instance_data),
+                          timeout=600)  # Cache por 10 minutos
             except OdooInstance.DoesNotExist:
                 return JsonResponse({"error": "Token inválido"}, status=401)
 

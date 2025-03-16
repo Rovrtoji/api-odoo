@@ -6,65 +6,102 @@ from .utils import validate_json, validate_required_params
 from .models import OdooInstance
 from django.core.cache import cache
 
+@csrf_exempt
 def get_records(request):
-    """
-    Endpoint para consultar registros en Odoo usando `search_read`.
-    Requiere parámetros:
-    - model: nombre del modelo en Odoo
-    - domain: lista JSON con condiciones (opcional, por defecto [])
-    - fields: lista JSON con los campos a recuperar (opcional, por defecto [])
-    """
-    if request.method == 'GET':
-        try:
-            # obtener token de la cabecera
-            token = request.headers.get("Authorization")
-            if not token:
-                return JsonResponse({'error': 'No token provided.'}, status=401)
+    """ Endpoint para consultar registros en Odoo usando autenticación con expiración de tokens """
+    if request.method == "GET":
+        token = request.headers.get("Authorization")
 
-            instance = cache.get(f"odoo_instance_{token}")
-            if not instance:
-                try:
-                    instance = OdooInstance.objects.get(token=token)
-                    #guardamos la instancia en Redis para acelerar futuras solicitudes
-                    cache.set(f"odoo_instance_{token}", instance, timeout=600)  # Cache por 10 minutos
-                except OdooInstance.DoesNotExist:
-                    return JsonResponse({"error": "Token inválido"}, status=401)
-            model = request.GET.get('model')
-            domain = request.GET.get('domain', '[]')  # Si no hay domain, por defecto es []
-            fields = request.GET.get('fields', '[]')  # Si no hay fields, por defecto es []
+        if not token:
+            return JsonResponse({"error": "Falta el token en la cabecera Authorization"}, status=401)
+
+        # 🔹 Intentamos obtener la instancia desde la caché (Redis)
+        instance_data = cache.get(f"odoo_instance_{token}")
+
+        if instance_data:
+            instance_data = json.loads(instance_data)  # Convertimos de JSON a diccionario
+        else:
+            try:
+                instance = OdooInstance.objects.get(token=token)
+                if instance.is_token_expired():
+                    return JsonResponse({"error": "El token ha expirado"}, status=401)
+                if instance.token_lifetime == "once":
+                    instance.use_once_token()
+
+                # Guardamos la instancia en Redis como JSON
+                instance_data = {
+                    "url": instance.url,
+                    "database": instance.database,
+                    "username": instance.username,
+                    "password": instance.password,
+                }
+                cache.set(f"odoo_instance_{token}", json.dumps(instance_data), timeout=600)
+
+            except OdooInstance.DoesNotExist:
+                return JsonResponse({"error": "Token inválido"}, status=401)
+
+        try:
+            model = request.GET.get("model")
+            domain = request.GET.get("domain", "[]")
+            fields = request.GET.get("fields", "[]")
 
             if not model:
-                return JsonResponse({'error': 'El parámetro "model" es obligatorio'}, status=400)
+                return JsonResponse({"error": 'El parámetro "model" es obligatorio'}, status=400)
 
-            #convertimos los parametrros JSON a lista python
             domain = json.loads(domain)
             fields = json.loads(fields)
-            data = search_read(instance.url, instance.database, instance.username, instance.password, model, domain, fields)
+
+            # 🔹 Llamamos a Odoo usando la instancia correcta
+            data = search_read(
+                instance_data["url"],
+                instance_data["database"],
+                instance_data["username"],
+                instance_data["password"],
+                model,
+                domain,
+                fields
+            )
+
             return JsonResponse({"data": data}, safe=False)
+
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
+
     return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
 @csrf_exempt
 def create_record_view(request):
-    """ Endpoint para crear un registro en Odoo usando autenticación dinámica """
+    """ Endpoint para crear un registro en Odoo con validación de token """
     if request.method == "POST":
         token = request.headers.get("Authorization")
 
         if not token:
             return JsonResponse({"error": "Falta el token en la cabecera Authorization"}, status=401)
 
-        # 🔹 Obtener la instancia desde Redis o la BD
-        instance = cache.get(f"odoo_instance_{token}")
+        # 🔹 Obtener la instancia de Odoo desde Redis o la BD
+        instance_data = cache.get(f"odoo_instance_{token}")
 
-        if not instance:
+        if instance_data:
+            instance_data = json.loads(instance_data)  # Convertimos de JSON a diccionario
+        else:
             try:
                 instance = OdooInstance.objects.get(token=token)
-                cache.set(f"odoo_instance_{token}", instance, timeout=600)
+                if instance.is_token_expired():
+                    return JsonResponse({"error": "El token ha expirado"}, status=401)
+                if instance.token_lifetime == "once":
+                    instance.use_once_token()
+
+                instance_data = {
+                    "url": instance.url,
+                    "database": instance.database,
+                    "username": instance.username,
+                    "password": instance.password,
+                }
+                cache.set(f"odoo_instance_{token}", json.dumps(instance_data), timeout=600)
+
             except OdooInstance.DoesNotExist:
                 return JsonResponse({"error": "Token inválido"}, status=401)
-
         try:
             data = json.loads(request.body.decode("utf-8"))
             model = data.get("model")
@@ -74,7 +111,14 @@ def create_record_view(request):
                 return JsonResponse({"error": 'Faltan parámetros "model" o "values"'}, status=400)
 
             # 🔹 Llamar a Odoo con conexión dinámica
-            record_id = create_record(instance.url, instance.database, instance.username, instance.password, model, values)
+            record_id = create_record(
+                instance_data["url"],
+                instance_data["database"],
+                instance_data["username"],
+                instance_data["password"],
+                model,
+                values
+            )
 
             return JsonResponse({"success": True, "record_id": record_id})
 
@@ -85,23 +129,35 @@ def create_record_view(request):
 
 @csrf_exempt
 def update_record_view(request):
-    """ Endpoint para actualizar un registro en Odoo usando autenticación dinámica """
+    """ Endpoint para actualizar un registro en Odoo con validación de token """
     if request.method == "PUT":
         token = request.headers.get("Authorization")
 
         if not token:
             return JsonResponse({"error": "Falta el token en la cabecera Authorization"}, status=401)
 
-        # 🔹 Obtener la instancia desde Redis o la BD
-        instance = cache.get(f"odoo_instance_{token}")
+        instance_data = cache.get(f"odoo_instance_{token}")
 
-        if not instance:
+        if instance_data:
+            instance_data = json.loads(instance_data)
+        else:
             try:
                 instance = OdooInstance.objects.get(token=token)
-                cache.set(f"odoo_instance_{token}", instance, timeout=600)
+                if instance.is_token_expired():
+                    return JsonResponse({"error": "El token ha expirado"}, status=401)
+                if instance.token_lifetime == "once":
+                    instance.use_once_token()
+
+                instance_data = {
+                    "url": instance.url,
+                    "database": instance.database,
+                    "username": instance.username,
+                    "password": instance.password,
+                }
+                cache.set(f"odoo_instance_{token}", json.dumps(instance_data), timeout=600)
+
             except OdooInstance.DoesNotExist:
                 return JsonResponse({"error": "Token inválido"}, status=401)
-
         try:
             data = json.loads(request.body.decode("utf-8"))
             model = data.get("model")
@@ -111,8 +167,15 @@ def update_record_view(request):
             if not model or not record_id or not values:
                 return JsonResponse({"error": 'Faltan parámetros "model", "id" o "values"'}, status=400)
 
-            # 🔹 Llamar a Odoo con conexión dinámica
-            success = update_record(instance.url, instance.database, instance.username, instance.password, model, record_id, values)
+            success = update_record(
+                instance_data["url"],
+                instance_data["database"],
+                instance_data["username"],
+                instance_data["password"],
+                model,
+                record_id,
+                values
+            )
 
             return JsonResponse({"success": success})
 
@@ -120,22 +183,36 @@ def update_record_view(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
+
 @csrf_exempt
 def delete_record_view(request):
-    """ Endpoint para eliminar un registro en Odoo usando autenticación dinámica """
+    """ Endpoint para eliminar un registro en Odoo con validación de token """
     if request.method == "DELETE":
         token = request.headers.get("Authorization")
 
         if not token:
             return JsonResponse({"error": "Falta el token en la cabecera Authorization"}, status=401)
 
-        # 🔹 Obtener la instancia desde Redis o la BD
-        instance = cache.get(f"odoo_instance_{token}")
+        instance_data = cache.get(f"odoo_instance_{token}")
 
-        if not instance:
+        if instance_data:
+            instance_data = json.loads(instance_data)
+        else:
             try:
                 instance = OdooInstance.objects.get(token=token)
-                cache.set(f"odoo_instance_{token}", instance, timeout=600)
+                if instance.is_token_expired():
+                    return JsonResponse({"error": "El token ha expirado"}, status=401)
+                if instance.token_lifetime == "once":
+                    instance.use_once_token()
+
+                instance_data = {
+                    "url": instance.url,
+                    "database": instance.database,
+                    "username": instance.username,
+                    "password": instance.password,
+                }
+                cache.set(f"odoo_instance_{token}", json.dumps(instance_data), timeout=600)
+
             except OdooInstance.DoesNotExist:
                 return JsonResponse({"error": "Token inválido"}, status=401)
 
@@ -147,9 +224,14 @@ def delete_record_view(request):
             if not model or not record_id:
                 return JsonResponse({"error": 'Faltan parámetros "model" o "id"'}, status=400)
 
-            # 🔹 Llamar a Odoo con conexión dinámica
-            success = delete_record(instance.url, instance.database, instance.username, instance.password, model, record_id)
-
+            success = delete_record(
+                instance_data["url"],
+                instance_data["database"],
+                instance_data["username"],
+                instance_data["password"],
+                model,
+                record_id
+            )
             return JsonResponse({"success": success})
 
         except Exception as e:
@@ -189,3 +271,66 @@ def register_odoo_instance(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
+
+
+@csrf_exempt
+def revoke_token_view(request):
+    """ Endpoint para revocar un token manualmente """
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body.decode("utf-8"))
+            token = data.get("token")
+
+            print(f"🔍 Token recibido en la solicitud: {token}")  # 🛠️ Depuración
+
+            if not token:
+                return JsonResponse({"error": "Falta el parámetro 'token'"}, status=400)
+
+            # Eliminar de Redis primero, independientemente de si existe en la BD
+            cache_key = f"odoo_instance_{token}"
+            was_in_cache = cache.get(cache_key) is not None
+            cache.delete(cache_key)
+
+            success_message = []
+            if was_in_cache:
+                success_message.append("Token eliminado de Redis")
+
+            # Intentar actualizar en la base de datos
+            try:
+                instance = OdooInstance.objects.get(token=token)
+
+                # Guardar el ID antes de invalidar para el mensaje de éxito
+                instance_id = instance.id
+
+                # Invalidar el token
+                instance.token = None
+                instance.expires_at = None
+                instance.save()
+
+                success_message.append(f"Token revocado en la base de datos para la instancia {instance_id}")
+
+                return JsonResponse({
+                    "success": True,
+                    "message": "; ".join(success_message) or "Token procesado"
+                })
+
+            except OdooInstance.DoesNotExist:
+                # Si el token no se encuentra en la BD pero se eliminó de Redis, consideramos éxito parcial
+                if was_in_cache:
+                    return JsonResponse({
+                        "success": True,
+                        "message": "; ".join(success_message),
+                        "warning": "Token no encontrado en la base de datos"
+                    })
+                else:
+                    return JsonResponse({"error": "Token no encontrado en Redis ni en la base de datos"}, status=404)
+
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "JSON inválido en el cuerpo de la solicitud"}, status=400)
+        except Exception as e:
+            print(f"Error al procesar la solicitud: {str(e)}")  # Log el error completo
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+
+
