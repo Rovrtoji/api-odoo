@@ -1,15 +1,21 @@
 from django.core.cache import cache
 from django.http import JsonResponse
+from django.utils.deprecation import MiddlewareMixin
 from .models import OdooInstance
 import json
 
 class OdooInstanceMiddleware:
     """ Middleware para autenticar instancias de Odoo con tokens y caché en Redis """
+    EXCLUDED_PATHS = ["/api/register_odoo_instance/", "/api/revoke_token/"]
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
+
+        if request.path in self.EXCLUDED_PATHS:
+            return self.get_response(request)
+
         token = request.headers.get("Authorization")
 
         if not token:

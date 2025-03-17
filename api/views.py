@@ -1,3 +1,4 @@
+import uuid
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
@@ -5,6 +6,8 @@ from .odoo_client import search_read, create_record, update_record,delete_record
 from .utils import validate_json, validate_required_params
 from .models import OdooInstance
 from django.core.cache import cache
+from django.utils.timezone import now
+from datetime import timedelta
 
 @csrf_exempt
 def get_records(request):
@@ -243,7 +246,7 @@ def delete_record_view(request):
 #crear tokern de autenticacion para instancia de odoo
 @csrf_exempt
 def register_odoo_instance(request):
-    """ Endpoint para registrar una nueva instancia de Odoo """
+    """ Endpoint para registrar una nueva instancia de Odoo con contraseña encriptada """
     if request.method == "POST":
         try:
             data = json.loads(request.body.decode("utf-8"))
@@ -256,6 +259,7 @@ def register_odoo_instance(request):
             if not all([name, url, database, username, password]):
                 return JsonResponse({"error": "Faltan parámetros"}, status=400)
 
+            # Crear instancia en la BD con la contraseña encriptada
             instance, created = OdooInstance.objects.get_or_create(
                 name=name,
                 defaults={"url": url, "database": database, "username": username, "password": password}
@@ -273,11 +277,13 @@ def register_odoo_instance(request):
     return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
+
 @csrf_exempt
 def revoke_token_view(request):
     """ Endpoint para revocar un token manualmente """
     if request.method == "POST":
         try:
+            # 🔹 Cargar los datos de la solicitud
             data = json.loads(request.body.decode("utf-8"))
             token = data.get("token")
 
@@ -286,51 +292,28 @@ def revoke_token_view(request):
             if not token:
                 return JsonResponse({"error": "Falta el parámetro 'token'"}, status=400)
 
-            # Eliminar de Redis primero, independientemente de si existe en la BD
-            cache_key = f"odoo_instance_{token}"
-            was_in_cache = cache.get(cache_key) is not None
-            cache.delete(cache_key)
-
-            success_message = []
-            if was_in_cache:
-                success_message.append("Token eliminado de Redis")
-
-            # Intentar actualizar en la base de datos
             try:
+                # 🔹 Buscar la instancia en la BD
                 instance = OdooInstance.objects.get(token=token)
+                print(f"✅ Token encontrado en BD: {instance.token}")
 
-                # Guardar el ID antes de invalidar para el mensaje de éxito
-                instance_id = instance.id
-
-                # Invalidar el token
+                # 🔹 Eliminar el token de la BD
                 instance.token = None
                 instance.expires_at = None
                 instance.save()
 
-                success_message.append(f"Token revocado en la base de datos para la instancia {instance_id}")
+                # 🔹 Eliminar el token de Redis
+                cache.delete(f"odoo_instance_{token}")
+                print(f"🗑️ Token eliminado de Redis: odoo_instance_{token}")
 
-                return JsonResponse({
-                    "success": True,
-                    "message": "; ".join(success_message) or "Token procesado"
-                })
+                return JsonResponse({"success": True, "message": "Token revocado correctamente"})
 
             except OdooInstance.DoesNotExist:
-                # Si el token no se encuentra en la BD pero se eliminó de Redis, consideramos éxito parcial
-                if was_in_cache:
-                    return JsonResponse({
-                        "success": True,
-                        "message": "; ".join(success_message),
-                        "warning": "Token no encontrado en la base de datos"
-                    })
-                else:
-                    return JsonResponse({"error": "Token no encontrado en Redis ni en la base de datos"}, status=404)
+                return JsonResponse({"error": "Token no encontrado"}, status=404)
 
         except json.JSONDecodeError:
-            return JsonResponse({"error": "JSON inválido en el cuerpo de la solicitud"}, status=400)
+            return JsonResponse({"error": "Error al procesar la solicitud, formato JSON inválido"}, status=400)
         except Exception as e:
-            print(f"Error al procesar la solicitud: {str(e)}")  # Log el error completo
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
-
-
