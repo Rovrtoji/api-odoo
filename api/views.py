@@ -12,31 +12,39 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 import xmlrpc.client
 import pytz
+import logging
+logger = logging.getLogger(__name__)
 
 
 @csrf_exempt
 def get_records(request):
-    """ Endpoint para consultar registros en Odoo usando autenticación con expiración de tokens """
+    """ Endpoint para consultar registros en Odoo usando autenticación con logs """
     if request.method == "GET":
         token = request.headers.get("Authorization")
 
         if not token:
+            logger.warning("Falta el token en la cabecera Authorization")
             return JsonResponse({"error": "Falta el token en la cabecera Authorization"}, status=401)
 
-        # 🔹 Intentamos obtener la instancia desde la caché (Redis)
+        logger.info(f"Token recibido: {token}")
+
+        # Intentar obtener la instancia desde Redis
         instance_data = cache.get(f"odoo_instance_{token}")
 
         if instance_data:
-            instance_data = json.loads(instance_data)  # Convertimos de JSON a diccionario
+            instance_data = json.loads(instance_data)
+            logger.info("Instancia obtenida desde Redis")
         else:
             try:
                 instance = OdooInstance.objects.get(token=token)
                 if instance.is_token_expired():
+                    logger.warning(f"Token expirado: {token}")
                     return JsonResponse({"error": "El token ha expirado"}, status=401)
+
                 if instance.token_lifetime == "once":
                     instance.use_once_token()
+                    logger.info(f"Token de un solo uso eliminado: {token}")
 
-                # Guardamos la instancia en Redis como JSON
                 instance_data = {
                     "url": instance.url,
                     "database": instance.database,
@@ -44,8 +52,9 @@ def get_records(request):
                     "password": instance.password,
                 }
                 cache.set(f"odoo_instance_{token}", json.dumps(instance_data), timeout=600)
-
+                logger.info(f"Instancia {instance.name} cargada y guardada en Redis")
             except OdooInstance.DoesNotExist:
+                logger.error(f"Token inválido: {token}")
                 return JsonResponse({"error": "Token inválido"}, status=401)
 
         try:
@@ -54,12 +63,12 @@ def get_records(request):
             fields = request.GET.get("fields", "[]")
 
             if not model:
+                logger.warning("Falta el parámetro 'model'")
                 return JsonResponse({"error": 'El parámetro "model" es obligatorio'}, status=400)
 
             domain = json.loads(domain)
             fields = json.loads(fields)
 
-            # 🔹 Llamamos a Odoo usando la instancia correcta
             data = search_read(
                 instance_data["url"],
                 instance_data["database"],
@@ -70,12 +79,15 @@ def get_records(request):
                 fields
             )
 
+            logger.info(f"Consulta realizada en Odoo para {model}")
             return JsonResponse({"data": data}, safe=False)
 
         except Exception as e:
+            logger.error(f"Error en get_records: {e}")
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
+
 
 
 @csrf_exempt
