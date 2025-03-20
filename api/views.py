@@ -23,27 +23,27 @@ def get_records(request):
         token = request.headers.get("Authorization")
 
         if not token:
-            logger.warning("Falta el token en la cabecera Authorization")
+            logger.warning("❌ Falta el token en la cabecera Authorization")
             return JsonResponse({"error": "Falta el token en la cabecera Authorization"}, status=401)
 
-        logger.info(f"Token recibido: {token}")
+        logger.info(f"🔹 Token recibido: {token}")
 
         # Intentar obtener la instancia desde Redis
         instance_data = cache.get(f"odoo_instance_{token}")
 
         if instance_data:
             instance_data = json.loads(instance_data)
-            logger.info("Instancia obtenida desde Redis")
+            logger.info("✅ Instancia obtenida desde Redis")
         else:
             try:
                 instance = OdooInstance.objects.get(token=token)
                 if instance.is_token_expired():
-                    logger.warning(f"Token expirado: {token}")
+                    logger.warning(f"⚠ Token expirado: {token}")
                     return JsonResponse({"error": "El token ha expirado"}, status=401)
 
                 if instance.token_lifetime == "once":
                     instance.use_once_token()
-                    logger.info(f"Token de un solo uso eliminado: {token}")
+                    logger.info(f"🔄 Token de un solo uso eliminado: {token}")
 
                 instance_data = {
                     "url": instance.url,
@@ -52,9 +52,9 @@ def get_records(request):
                     "password": instance.password,
                 }
                 cache.set(f"odoo_instance_{token}", json.dumps(instance_data), timeout=600)
-                logger.info(f"Instancia {instance.name} cargada y guardada en Redis")
+                logger.info(f"📦 Instancia {instance.name} cargada y guardada en Redis")
             except OdooInstance.DoesNotExist:
-                logger.error(f"Token inválido: {token}")
+                logger.error(f"❌ Token inválido: {token}")
                 return JsonResponse({"error": "Token inválido"}, status=401)
 
         try:
@@ -63,7 +63,7 @@ def get_records(request):
             fields = request.GET.get("fields", "[]")
 
             if not model:
-                logger.warning("Falta el parámetro 'model'")
+                logger.warning("⚠ Falta el parámetro 'model'")
                 return JsonResponse({"error": 'El parámetro "model" es obligatorio'}, status=400)
 
             domain = json.loads(domain)
@@ -79,38 +79,43 @@ def get_records(request):
                 fields
             )
 
-            logger.info(f"Consulta realizada en Odoo para {model}")
+            logger.info(f"✅ Consulta realizada en Odoo para el modelo {model}")
             return JsonResponse({"data": data}, safe=False)
 
         except Exception as e:
-            logger.error(f"Error en get_records: {e}")
+            logger.error(f"❌ Error en get_records: {e}")
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
 
+
 @csrf_exempt
 def create_record_view(request):
-    """ Endpoint para crear un registro en Odoo con validación de token """
+    """ Endpoint para crear un registro en Odoo con validación de token y logs """
     if request.method == "POST":
         token = request.headers.get("Authorization")
 
         if not token:
+            logger.warning("❌ Falta el token en la cabecera Authorization")
             return JsonResponse({"error": "Falta el token en la cabecera Authorization"}, status=401)
 
-        # 🔹 Obtener la instancia de Odoo desde Redis o la BD
         instance_data = cache.get(f"odoo_instance_{token}")
 
         if instance_data:
-            instance_data = json.loads(instance_data)  # Convertimos de JSON a diccionario
+            instance_data = json.loads(instance_data)
+            logger.info("✅ Instancia obtenida desde Redis")
         else:
             try:
                 instance = OdooInstance.objects.get(token=token)
                 if instance.is_token_expired():
+                    logger.warning(f"⚠ Token expirado: {token}")
                     return JsonResponse({"error": "El token ha expirado"}, status=401)
+
                 if instance.token_lifetime == "once":
                     instance.use_once_token()
+                    logger.info(f"🔄 Token de un solo uso eliminado: {token}")
 
                 instance_data = {
                     "url": instance.url,
@@ -119,18 +124,20 @@ def create_record_view(request):
                     "password": instance.password,
                 }
                 cache.set(f"odoo_instance_{token}", json.dumps(instance_data), timeout=600)
-
+                logger.info(f"📦 Instancia {instance.name} cargada y guardada en Redis")
             except OdooInstance.DoesNotExist:
+                logger.error(f"❌ Token inválido: {token}")
                 return JsonResponse({"error": "Token inválido"}, status=401)
+
         try:
             data = json.loads(request.body.decode("utf-8"))
             model = data.get("model")
             values = data.get("values", {})
 
             if not model or not values:
+                logger.warning("⚠ Faltan parámetros 'model' o 'values'")
                 return JsonResponse({"error": 'Faltan parámetros "model" o "values"'}, status=400)
 
-            # 🔹 Llamar a Odoo con conexión dinámica
             record_id = create_record(
                 instance_data["url"],
                 instance_data["database"],
@@ -140,9 +147,11 @@ def create_record_view(request):
                 values
             )
 
+            logger.info(f"✅ Registro creado en Odoo (ID: {record_id}) para el modelo {model}")
             return JsonResponse({"success": True, "record_id": record_id})
 
         except Exception as e:
+            logger.error(f"❌ Error en create_record_view: {e}")
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
@@ -417,7 +426,7 @@ def get_asistencia_records(request):
         records = models.execute_kw(
             instance.database, uid, password,
             'asi.asistencia', 'search_read', [domain],
-            {'fields': ['name', 'empleadoId', 'horaIngreso', 'horaSalida']}
+            {'fields': ['name', 'empleadoId', 'horaIngreso','horaSalidaComida', 'horaSalida','horaRegresoComida','id']}
         )
 
         return Response({"data": records})

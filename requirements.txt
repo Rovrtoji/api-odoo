@@ -5,3 +5,5 @@ pytz==2024.1
 xmlrpc==1.0.1
 python-dotenv==1.0.1
 django-redis==5.0.1
+django-cors-headers
+redis
