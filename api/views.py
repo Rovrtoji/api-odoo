@@ -7,7 +7,12 @@ from .utils import validate_json, validate_required_params
 from .models import OdooInstance
 from django.core.cache import cache
 from django.utils.timezone import now
-from datetime import timedelta
+from datetime import datetime, timedelta
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+import xmlrpc.client
+import pytz
+
 
 @csrf_exempt
 def get_records(request):
@@ -318,12 +323,7 @@ def revoke_token_view(request):
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
 
-
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-import xmlrpc.client
-from api.models import OdooInstance
-
+"""inicia logica para asistencia"""
 @api_view(["POST"])
 def verify_odoo_user(request):
     """ Endpoint para verificar si un usuario y contraseña existen en Odoo y obtener su nombre """
@@ -364,6 +364,144 @@ def verify_odoo_user(request):
             "uid": uid,
             "name": user_name
         })
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["GET"])
+def get_asistencia_records(request):
+    """ Endpoint para obtener registros de asistencia del día actual """
+    try:
+        data = request.query_params
+        instance_name = data.get("instance_name")
+        login = data.get("login")
+        password = data.get("password")
+        timezone = data.get("timezone", "UTC")  # Permitir definir zona horaria
+
+        if not all([instance_name, login, password]):
+            return Response({"error": "Faltan parámetros: instance_name, login y password"}, status=400)
+
+        # 🔹 Buscar la instancia en la BD
+        try:
+            instance = OdooInstance.objects.get(name=instance_name)
+        except OdooInstance.DoesNotExist:
+            return Response({"error": "Instancia no encontrada"}, status=404)
+
+        # 🔹 Autenticación en Odoo
+        common = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/common")
+        uid = common.authenticate(instance.database, login, password, {})
+
+        if not uid:
+            return Response({"valid": False, "message": "Usuario o contraseña incorrectos"}, status=401)
+
+        # 🔹 Obtener la fecha actual con zona horaria
+        tz = pytz.timezone(timezone)
+        today_start = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S')
+        today_end = datetime.now(tz).replace(hour=23, minute=59, second=59, microsecond=999999).strftime('%Y-%m-%d %H:%M:%S')
+
+        # 🔹 Filtrar solo registros del día actual
+        models = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/object")
+        domain = [['horaIngreso', '>=', today_start], ['horaIngreso', '<', today_end]]
+        records = models.execute_kw(
+            instance.database, uid, password,
+            'asi.asistencia', 'search_read', [domain],
+            {'fields': ['name', 'empleadoId', 'horaIngreso', 'horaSalida']}
+        )
+
+        return Response({"data": records})
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["POST"])
+def create_asistencia_record(request):
+    """ Endpoint para crear un registro de asistencia """
+    try:
+        data = request.data
+        instance_name = data.get("instance_name")
+        login = data.get("login")
+        password = data.get("password")
+        values = data.get("values", {})
+
+        if not all([instance_name, login, password, values]):
+            return Response({"error": "Faltan parámetros: instance_name, login, password y values"}, status=400)
+
+        # 🔹 Buscar la instancia en la BD
+        try:
+            instance = OdooInstance.objects.get(name=instance_name)
+        except OdooInstance.DoesNotExist:
+            return Response({"error": "Instancia no encontrada"}, status=404)
+
+        # 🔹 Autenticación en Odoo
+        common = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/common")
+        uid = common.authenticate(instance.database, login, password, {})
+
+        if not uid:
+            return Response({"valid": False, "message": "Usuario o contraseña incorrectos"}, status=401)
+
+        # 🔹 Crear registro en Odoo
+        models = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/object")
+        record_id = models.execute_kw(
+            instance.database, uid, password,
+            'asi.asistencia', 'create', [values]
+        )
+
+        return Response({"success": True, "record_id": record_id})
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["PUT"])
+def update_asistencia_record(request):
+    """ Endpoint para actualizar un registro de asistencia SOLO del día actual """
+    try:
+        data = request.data
+        instance_name = data.get("instance_name")
+        login = data.get("login")
+        password = data.get("password")
+        record_id = data.get("id")
+        values = data.get("values", {})
+        timezone = data.get("timezone", "UTC")
+
+        if not all([instance_name, login, password, record_id, values]):
+            return Response({"error": "Faltan parámetros: instance_name, login, password, id y values"}, status=400)
+
+        # 🔹 Buscar la instancia en la BD
+        try:
+            instance = OdooInstance.objects.get(name=instance_name)
+        except OdooInstance.DoesNotExist:
+            return Response({"error": "Instancia no encontrada"}, status=404)
+
+        # 🔹 Autenticación en Odoo
+        common = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/common")
+        uid = common.authenticate(instance.database, login, password, {})
+
+        if not uid:
+            return Response({"valid": False, "message": "Usuario o contraseña incorrectos"}, status=401)
+
+        # 🔹 Obtener la fecha actual
+        tz = pytz.timezone(timezone)
+        today_start = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S')
+        today_end = datetime.now(tz).replace(hour=23, minute=59, second=59, microsecond=999999).strftime('%Y-%m-%d %H:%M:%S')
+
+        # 🔹 Verificar si el registro pertenece al día actual
+        models = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/object")
+        record = models.execute_kw(
+            instance.database, uid, password,
+            'asi.asistencia', 'read', [[record_id]], {'fields': ['horaIngreso']}
+        )
+
+        if not record or not (today_start <= record[0]['horaIngreso'] <= today_end):
+            return Response({"error": "Solo se pueden actualizar registros del día actual"}, status=403)
+
+        # 🔹 Actualizar el registro
+        success = models.execute_kw(
+            instance.database, uid, password,
+            'asi.asistencia', 'write', [[record_id], values]
+        )
+
+        return Response({"success": success})
 
     except Exception as e:
         return Response({"error": str(e)}, status=500)
