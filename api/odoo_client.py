@@ -55,12 +55,11 @@ def connect_to_odoo(instance_name):
     try:
         instance = OdooInstance.objects.get(name=instance_name)
 
-        # 🔹 Verificar la contraseña con `check_password()`
-        if not instance.check_password("admin"):  # Aquí debes pasar la contraseña real
-            return {"error": "Contraseña incorrecta"}
+        # 🔹 Recuperar la contraseña desencriptada para autenticación
+        password = instance.password
 
         common = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/common")
-        uid = common.authenticate(instance.database, instance.username, "admin", {})
+        uid = common.authenticate(instance.database, instance.username, password, {})
 
         if not uid:
             return {"error": "Error de autenticación en Odoo"}

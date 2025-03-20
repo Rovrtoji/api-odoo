@@ -317,3 +317,53 @@ def revoke_token_view(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
+
+
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+import xmlrpc.client
+from api.models import OdooInstance
+
+@api_view(["POST"])
+def verify_odoo_user(request):
+    """ Endpoint para verificar si un usuario y contraseña existen en Odoo y obtener su nombre """
+    try:
+        data = request.data
+        instance_name = data.get("instance_name")
+        login = data.get("login")
+        password = data.get("password")
+
+        if not all([instance_name, login, password]):
+            return Response({"error": "Faltan parámetros: instance_name, login y password"}, status=400)
+
+        # 🔹 Buscar la instancia en la BD
+        try:
+            instance = OdooInstance.objects.get(name=instance_name)
+        except OdooInstance.DoesNotExist:
+            return Response({"error": "Instancia no encontrada"}, status=404)
+
+        # 🔹 Conectarse a Odoo y verificar credenciales
+        common = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/common")
+        uid = common.authenticate(instance.database, login, password, {})
+
+        if not uid:
+            return Response({"valid": False, "message": "Usuario o contraseña incorrectos"}, status=401)
+
+        # 🔹 Si la autenticación es exitosa, obtener el nombre del usuario
+        models = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/object")
+        user_data = models.execute_kw(
+            instance.database, uid, password,
+            'res.users', 'read', [[uid]], {'fields': ['name']}
+        )
+
+        user_name = user_data[0]['name'] if user_data else "Desconocido"
+
+        return Response({
+            "valid": True,
+            "message": "Usuario autenticado correctamente",
+            "uid": uid,
+            "name": user_name
+        })
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)

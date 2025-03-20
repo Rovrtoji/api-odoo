@@ -2,21 +2,15 @@ from django.db import models
 import uuid
 from django.contrib.auth.hashers import make_password, check_password
 from datetime import timedelta, datetime, timezone
+from django.utils.timezone import now
 
 
 class OdooInstance(models.Model):
-    #Modelo para almacenar credenciales y tokens de instancias de odoo
-    EXPIRATION_CHOICES = [
-        ("once", "Una vez"),
-        ("30d", "30 días"),
-        ("60d", "60 días"),
-        ("forever", "Para Siempre"),
-    ]
     name = models.CharField(max_length=255, unique=True)
     url = models.URLField()
     database = models.CharField(max_length=100)
     username = models.CharField(max_length=100)
-    password = models.CharField(max_length=255)  # 🔒 Guardaremos la versión encriptada
+    password = models.CharField(max_length=255)  # 🔒 Guardado encriptado
     token = models.CharField(max_length=255, null=True, blank=True, unique=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     token_lifetime = models.CharField(
@@ -25,10 +19,25 @@ class OdooInstance(models.Model):
         default="30d"
     )
 
+    def generate_token(self, lifetime=None):
+        """ Genera un nuevo token con la expiración correcta """
+        self.token = str(uuid.uuid4())
+
+        if lifetime is None:
+            lifetime = self.token_lifetime
+
+        if lifetime == "forever":
+            self.expires_at = None
+        else:
+            days = int(lifetime.replace("d", ""))
+            self.expires_at = now() + timedelta(days=days)
+
+        self.save()
+
     def save(self, *args, **kwargs):
-        """Sobreescribir el método save() para encriptar la contraseña antes de guardar."""
-        if not self.password.startswith("pbkdf2_sha256$"):
-            self.password = make_password(self.password)  # 🔒 Encriptar la contraseña
+        # """Sobreescribir el método save() para encriptar la contraseña antes de guardar."""
+        # if not self.password.startswith("pbkdf2_sha256$"):
+        #     self.password = make_password(self.password)  # 🔒 Encriptar la contraseña
         super(OdooInstance, self).save(*args, **kwargs)
 
     def check_password(self, raw_password):

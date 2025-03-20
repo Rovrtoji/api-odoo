@@ -6,7 +6,7 @@ import json
 
 class OdooInstanceMiddleware:
     """ Middleware para autenticar instancias de Odoo con tokens y caché en Redis """
-    EXCLUDED_PATHS = ["/api/register_odoo_instance/", "/api/revoke_token/"]
+    EXCLUDED_PATHS = ["/api/register_odoo_instance/", "/api/revoke_token/", "/api/verify_odoo_user/"]
 
     def __init__(self, get_response):
         self.get_response = get_response
