@@ -6,22 +6,27 @@ LOG_FILE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "api_lo
 
 
 def logs_view(request):
-    """ Vista web para ver los logs en tiempo real con auto-refresh """
+    """ Vista para ver logs con auto-limpieza si el archivo es demasiado grande """
     try:
+        if os.path.exists(LOG_FILE_PATH):
+            file_size = os.path.getsize(LOG_FILE_PATH) / (1024 * 1024)  # Convertir a MB
+
+            if file_size > 10:  # Si el archivo es mayor a 10 MB, lo borra
+                with open(LOG_FILE_PATH, "w") as log_file:
+                    log_file.write("")
+
         with open(LOG_FILE_PATH, "r") as log_file:
             logs = log_file.readlines()
-
-        log_content = "".join(logs[-50:])  # Últimos 50 registros
 
         html = f"""
         <html>
         <head>
-            <meta http-equiv="refresh" content="5"> <!-- Auto-refresh cada 5 segundos -->
+            <meta http-equiv="refresh" content="5">
             <title>Logs de la API</title>
         </head>
         <body>
             <h2>Logs de la API (últimos 50 registros)</h2>
-            <pre>{log_content}</pre>
+            <pre>{''.join(logs[-50:])}</pre>
         </body>
         </html>
         """
