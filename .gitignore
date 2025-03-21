@@ -1,0 +1,32 @@
+# Ignorar entornos virtuales
+venv/
+env/
+
+# Ignorar archivos de base de datos locales
+*.sqlite3
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignorar logs y archivos de caché
+*.log
+*.pot
+*.pyc
+*.pyo
+*.swp
+
+# Ignorar configuraciones locales y credenciales
+.env
+
+# Ignorar archivos de migraciones generadas
+**/migrations/__pycache__/
+**/migrations/*.pyc
+
+# Ignorar archivos de compilación y dependencias
+node_modules/
+*.egg-info/
+
+# Ignorar archivos de IDEs
+.vscode/
+.idea/
+*.iml
