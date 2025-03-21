@@ -501,20 +501,7 @@ def update_asistencia_record(request):
         if not uid:
             return Response({"valid": False, "message": "Usuario o contraseña incorrectos"}, status=401)
 
-        # 🔹 Obtener la fecha actual
-        tz = pytz.timezone(timezone)
-        today_start = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S')
-        today_end = datetime.now(tz).replace(hour=23, minute=59, second=59, microsecond=999999).strftime('%Y-%m-%d %H:%M:%S')
-
-        # 🔹 Verificar si el registro pertenece al día actual
         models = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/object")
-        record = models.execute_kw(
-            instance.database, uid, password,
-            'asi.asistencia', 'read', [[record_id]], {'fields': ['horaIngreso']}
-        )
-
-        if not record or not (today_start <= record[0]['horaIngreso'] <= today_end):
-            return Response({"error": "Solo se pueden actualizar registros del día actual"}, status=403)
 
         # 🔹 Actualizar el registro
         success = models.execute_kw(
