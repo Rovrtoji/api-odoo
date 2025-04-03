@@ -15373,3 +15373,151 @@ INFO 2025-03-21 15:56:21,719 basehttp "GET /api/get_asistencia_records/?instance
 INFO 2025-03-21 15:56:22,944 basehttp "GET /api/get_asistencia_records/?instance_name=asistencia&login=ricardo&password=Comsys&timezone=America%2FMexico_City HTTP/1.1" 200 227
 INFO 2025-03-21 16:06:33,466 basehttp "GET /api/get_asistencia_records/?instance_name=asistencia&login=ricardo&password=Comsys&timezone=America%2FMexico_City HTTP/1.1" 200 227
 INFO 2025-03-21 16:06:34,736 basehttp "GET /api/get_asistencia_records/?instance_name=asistencia&login=ricardo&password=Comsys&timezone=America%2FMexico_City HTTP/1.1" 200 227
+INFO 2025-03-21 17:51:48,968 autoreload C:\Users\rrv12\Downloads\apiodoo\api-odoo\api\views.py changed, reloading.
+INFO 2025-03-21 17:51:51,342 autoreload Watching for file changes with StatReloader
+INFO 2025-03-24 12:18:56,091 autoreload Watching for file changes with StatReloader
+INFO 2025-03-24 12:22:03,285 basehttp "OPTIONS /api/verify_odoo_user/ HTTP/1.1" 200 0
+INFO 2025-03-24 12:22:04,898 basehttp "POST /api/verify_odoo_user/ HTTP/1.1" 200 91
+INFO 2025-03-24 12:22:08,578 basehttp "GET /api/get_asistencia_records/?instance_name=asistencia&login=ricardo&password=Comsys&timezone=America%2FMexico_City HTTP/1.1" 200 11
+INFO 2025-03-24 12:22:09,695 basehttp "GET /api/get_asistencia_records/?instance_name=asistencia&login=ricardo&password=Comsys&timezone=America%2FMexico_City HTTP/1.1" 200 11
+INFO 2025-03-24 14:58:17,135 basehttp "OPTIONS /api/verify_odoo_user/ HTTP/1.1" 200 0
+INFO 2025-03-24 14:58:18,274 basehttp "POST /api/verify_odoo_user/ HTTP/1.1" 200 91
+INFO 2025-03-24 14:58:24,219 basehttp "GET /api/get_asistencia_records/?instance_name=asistencia&login=ricardo&password=Comsys&timezone=America%2FMexico_City HTTP/1.1" 200 11
+INFO 2025-03-24 14:58:25,307 basehttp "GET /api/get_asistencia_records/?instance_name=asistencia&login=ricardo&password=Comsys&timezone=America%2FMexico_City HTTP/1.1" 200 11
+INFO 2025-03-24 14:58:36,739 basehttp "OPTIONS /api/create_asistencia_record/ HTTP/1.1" 200 0
+INFO 2025-03-24 14:58:38,432 basehttp "POST /api/create_asistencia_record/ HTTP/1.1" 200 31
+INFO 2025-03-24 15:03:15,524 basehttp "OPTIONS /api/update_asistencia_record/ HTTP/1.1" 200 0
+INFO 2025-03-24 15:03:16,738 basehttp "PUT /api/update_asistencia_record/ HTTP/1.1" 200 16
+INFO 2025-03-25 09:47:51,555 autoreload Watching for file changes with StatReloader
+INFO 2025-03-25 09:53:11,131 basehttp "GET /api/get_asistencia_records/?instance_name=asistencia&login=ricardo&password=Comsys&timezone=America/Mexico_City HTTP/1.1" 200 11
+INFO 2025-03-25 09:53:53,414 basehttp "GET /api/get_asistencia_records/?instance_name=asistencia&login=ricardo&password=Comsys&timezone=America/Mexico_City HTTP/1.1" 200 11
+INFO 2025-03-25 10:00:13,040 autoreload C:\Users\rrv12\Downloads\apiodoo\api-odoo\api\views.py changed, reloading.
+INFO 2025-03-25 10:00:13,489 autoreload Watching for file changes with StatReloader
+INFO 2025-03-25 10:01:23,292 autoreload C:\Users\rrv12\Downloads\apiodoo\api-odoo\api\urls.py changed, reloading.
+INFO 2025-03-25 10:01:23,695 autoreload Watching for file changes with StatReloader
+INFO 2025-03-25 11:34:08,780 autoreload Watching for file changes with StatReloader
+WARNING 2025-03-25 11:34:12,093 log Unauthorized: /api/get_odoo_groups/
+WARNING 2025-03-25 11:34:12,093 basehttp "GET /api/get_odoo_groups/ HTTP/1.1" 401 32
+INFO 2025-03-25 11:34:31,916 basehttp "GET /api/get_odoo_groups/ HTTP/1.1" 200 1289
+INFO 2025-03-25 11:36:20,257 autoreload C:\Users\rrv12\Downloads\apiodoo\api-odoo\api\views.py changed, reloading.
+INFO 2025-03-25 11:36:21,786 autoreload Watching for file changes with StatReloader
+INFO 2025-03-25 11:36:26,721 basehttp "GET /api/get_odoo_groups/ HTTP/1.1" 200 2978
+INFO 2025-03-25 11:46:18,627 autoreload C:\Users\rrv12\Downloads\apiodoo\api-odoo\api\views.py changed, reloading.
+INFO 2025-03-25 11:46:19,274 autoreload Watching for file changes with StatReloader
+INFO 2025-03-25 11:48:03,518 basehttp "POST /api/register_odoo_instance/ HTTP/1.1" 200 66
+WARNING 2025-03-25 11:48:19,865 log Bad Request: /api/register_odoo_instance/
+WARNING 2025-03-25 11:48:19,865 basehttp "POST /api/register_odoo_instance/ HTTP/1.1" 400 35
+WARNING 2025-03-25 11:48:48,903 log Bad Request: /api/register_odoo_instance/
+WARNING 2025-03-25 11:48:48,903 basehttp "POST /api/register_odoo_instance/ HTTP/1.1" 400 35
+WARNING 2025-03-25 11:49:07,018 log Bad Request: /api/register_odoo_instance/
+WARNING 2025-03-25 11:49:07,019 basehttp "POST /api/register_odoo_instance/ HTTP/1.1" 400 35
+WARNING 2025-03-25 11:52:48,753 log Bad Request: /api/register_odoo_instance/
+WARNING 2025-03-25 11:52:48,753 basehttp "POST /api/register_odoo_instance/ HTTP/1.1" 400 35
+INFO 2025-03-25 11:53:43,314 basehttp "POST /api/register_odoo_instance/ HTTP/1.1" 200 66
+ERROR 2025-03-25 11:55:09,203 log Internal Server Error: /api/create_user_with_ejecutivo/
+ERROR 2025-03-25 11:55:09,203 basehttp "POST /api/create_user_with_ejecutivo/ HTTP/1.1" 500 130
+ERROR 2025-03-25 11:57:58,716 log Internal Server Error: /api/create_user_with_ejecutivo/
+ERROR 2025-03-25 11:57:58,717 basehttp "POST /api/create_user_with_ejecutivo/ HTTP/1.1" 500 130
+ERROR 2025-03-25 11:58:41,283 log Internal Server Error: /api/create_user_with_ejecutivo/
+ERROR 2025-03-25 11:58:41,283 basehttp "POST /api/create_user_with_ejecutivo/ HTTP/1.1" 500 130
+INFO 2025-03-25 12:00:43,861 autoreload Watching for file changes with StatReloader
+INFO 2025-03-25 12:01:08,882 autoreload Watching for file changes with StatReloader
+ERROR 2025-03-25 12:01:31,232 log Internal Server Error: /api/create_user_with_ejecutivo/
+ERROR 2025-03-25 12:01:31,233 basehttp "POST /api/create_user_with_ejecutivo/ HTTP/1.1" 500 130
+ERROR 2025-03-25 12:02:32,444 log Internal Server Error: /api/create_user_with_ejecutivo/
+ERROR 2025-03-25 12:02:32,444 basehttp "POST /api/create_user_with_ejecutivo/ HTTP/1.1" 500 107
+INFO 2025-03-25 12:03:30,906 basehttp "POST /api/create_user_with_ejecutivo/ HTTP/1.1" 200 54
+ERROR 2025-03-25 14:40:58,930 log Internal Server Error: /api/create_user_with_ejecutivo/
+ERROR 2025-03-25 14:40:58,931 basehttp "POST /api/create_user_with_ejecutivo/ HTTP/1.1" 500 130
+ERROR 2025-03-25 14:41:30,443 log Internal Server Error: /api/create_user_with_ejecutivo/
+ERROR 2025-03-25 14:41:30,444 basehttp "POST /api/create_user_with_ejecutivo/ HTTP/1.1" 500 130
+WARNING 2025-03-28 14:58:04,672 log Unauthorized: /
+WARNING 2025-03-28 14:58:04,684 basehttp "GET / HTTP/1.1" 401 56
+WARNING 2025-03-28 14:58:04,938 log Unauthorized: /favicon.ico
+WARNING 2025-03-28 14:58:04,938 basehttp "GET /favicon.ico HTTP/1.1" 401 56
+WARNING 2025-03-28 15:03:41,455 log Unauthorized: /
+WARNING 2025-03-28 15:03:41,456 basehttp "GET / HTTP/1.1" 401 56
+WARNING 2025-03-28 15:03:41,603 log Unauthorized: /favicon.ico
+WARNING 2025-03-28 15:03:41,604 basehttp "GET /favicon.ico HTTP/1.1" 401 56
+WARNING 2025-03-28 15:04:35,389 log Unauthorized: /logs/
+WARNING 2025-03-28 15:04:35,389 basehttp "GET /logs/ HTTP/1.1" 401 56
+WARNING 2025-03-28 15:04:35,447 log Unauthorized: /favicon.ico
+WARNING 2025-03-28 15:04:35,448 basehttp "GET /favicon.ico HTTP/1.1" 401 56
+WARNING 2025-03-28 15:04:38,685 log Unauthorized: /logs/
+WARNING 2025-03-28 15:04:38,685 basehttp "GET /logs/ HTTP/1.1" 401 56
+WARNING 2025-03-28 15:04:38,725 log Unauthorized: /favicon.ico
+WARNING 2025-03-28 15:04:38,726 basehttp "GET /favicon.ico HTTP/1.1" 401 56
+WARNING 2025-03-28 15:04:56,207 log Unauthorized: /logs
+WARNING 2025-03-28 15:04:56,208 basehttp "GET /logs HTTP/1.1" 401 56
+WARNING 2025-03-28 15:04:56,258 log Unauthorized: /favicon.ico
+WARNING 2025-03-28 15:04:56,258 basehttp "GET /favicon.ico HTTP/1.1" 401 56
+WARNING 2025-03-28 15:05:33,959 log Unauthorized: /logs
+WARNING 2025-03-28 15:05:33,960 basehttp "GET /logs HTTP/1.1" 401 56
+WARNING 2025-03-28 15:05:34,015 log Unauthorized: /favicon.ico
+WARNING 2025-03-28 15:05:34,016 basehttp "GET /favicon.ico HTTP/1.1" 401 56
+WARNING 2025-03-28 15:05:34,511 log Unauthorized: /logs
+WARNING 2025-03-28 15:05:34,511 basehttp "GET /logs HTTP/1.1" 401 56
+WARNING 2025-03-28 15:05:34,567 log Unauthorized: /favicon.ico
+WARNING 2025-03-28 15:05:34,567 basehttp "GET /favicon.ico HTTP/1.1" 401 56
+WARNING 2025-03-28 15:09:13,423 log Unauthorized: /
+WARNING 2025-03-28 15:09:13,424 basehttp "GET / HTTP/1.1" 401 56
+WARNING 2025-03-28 15:09:13,682 log Unauthorized: /favicon.ico
+WARNING 2025-03-28 15:09:13,682 basehttp "GET /favicon.ico HTTP/1.1" 401 56
+INFO 2025-04-03 15:36:29,695 autoreload Watching for file changes with StatReloader
+INFO 2025-04-03 15:37:48,463 autoreload C:\Users\rrv12\Downloads\apiodoo\api-odoo\api\urls.py changed, reloading.
+INFO 2025-04-03 15:37:48,849 autoreload Watching for file changes with StatReloader
+INFO 2025-04-03 15:38:56,001 basehttp "POST /api/register_odoo_instance/ HTTP/1.1" 200 66
+ERROR 2025-04-03 15:40:31,115 log Internal Server Error: /api/create_user_core/
+ERROR 2025-04-03 15:40:31,116 basehttp "POST /api/create_user_core/ HTTP/1.1" 500 130
+ERROR 2025-04-03 15:41:11,641 log Internal Server Error: /api/create_user_core/
+ERROR 2025-04-03 15:41:11,642 basehttp "POST /api/create_user_core/ HTTP/1.1" 500 130
+ERROR 2025-04-03 15:42:38,018 log Internal Server Error: /api/create_user_core/
+ERROR 2025-04-03 15:42:38,018 basehttp "POST /api/create_user_core/ HTTP/1.1" 500 130
+ERROR 2025-04-03 15:43:47,221 log Internal Server Error: /api/get_records/
+ERROR 2025-04-03 15:43:47,221 basehttp "GET /api/get_records/?model=res.partner&domain=[]&fields=[%22name%22,%22email%22] HTTP/1.1" 500 143
+ERROR 2025-04-03 15:45:07,878 log Internal Server Error: /api/get_records/
+ERROR 2025-04-03 15:45:07,879 basehttp "GET /api/get_records/?model=res.partner&domain=[]&fields=[%22name%22,%22email%22] HTTP/1.1" 500 143
+INFO 2025-04-03 15:45:17,216 autoreload Watching for file changes with StatReloader
+ERROR 2025-04-03 15:45:29,898 log Internal Server Error: /api/get_records/
+ERROR 2025-04-03 15:45:29,899 basehttp "GET /api/get_records/?model=res.partner&domain=[]&fields=[%22name%22,%22email%22] HTTP/1.1" 500 143
+WARNING 2025-04-03 15:45:42,244 log Unauthorized: /
+WARNING 2025-04-03 15:45:42,245 basehttp "GET / HTTP/1.1" 401 56
+WARNING 2025-04-03 15:45:52,591 log Unauthorized: /logs/
+WARNING 2025-04-03 15:45:52,592 basehttp "GET /logs/ HTTP/1.1" 401 56
+WARNING 2025-04-03 15:46:05,154 log Unauthorized: /logs/
+WARNING 2025-04-03 15:46:05,154 basehttp "GET /logs/ HTTP/1.1" 401 56
+INFO 2025-04-03 15:46:16,786 basehttp "GET /api/logs/ HTTP/1.1" 200 4034
+INFO 2025-04-03 15:46:21,839 basehttp "GET /api/logs/ HTTP/1.1" 200 4042
+INFO 2025-04-03 15:46:26,873 basehttp "GET /api/logs/ HTTP/1.1" 200 4052
+INFO 2025-04-03 15:46:31,926 basehttp "GET /api/logs/ HTTP/1.1" 200 4049
+INFO 2025-04-03 15:46:36,967 basehttp "GET /api/logs/ HTTP/1.1" 200 4065
+INFO 2025-04-03 15:46:42,018 basehttp "GET /api/logs/ HTTP/1.1" 200 4068
+INFO 2025-04-03 15:46:47,058 basehttp "GET /api/logs/ HTTP/1.1" 200 4078
+INFO 2025-04-03 15:46:52,113 basehttp "GET /api/logs/ HTTP/1.1" 200 4075
+INFO 2025-04-03 15:46:56,946 basehttp "GET /api/get_records/?model=res.partner&domain=[]&fields=[%22name%22,%22email%22] HTTP/1.1" 200 215
+INFO 2025-04-03 15:46:57,165 basehttp "GET /api/logs/ HTTP/1.1" 200 4160
+INFO 2025-04-03 15:47:02,226 basehttp "GET /api/logs/ HTTP/1.1" 200 4170
+INFO 2025-04-03 15:47:07,272 basehttp "GET /api/logs/ HTTP/1.1" 200 4167
+INFO 2025-04-03 15:47:12,330 basehttp "GET /api/logs/ HTTP/1.1" 200 4184
+INFO 2025-04-03 15:47:17,383 basehttp "GET /api/logs/ HTTP/1.1" 200 4188
+INFO 2025-04-03 15:47:22,443 basehttp "GET /api/logs/ HTTP/1.1" 200 4198
+INFO 2025-04-03 15:47:25,657 basehttp "POST /api/create_user_core/ HTTP/1.1" 200 83
+INFO 2025-04-03 15:47:27,519 basehttp "GET /api/logs/ HTTP/1.1" 200 4223
+INFO 2025-04-03 15:47:32,576 basehttp "GET /api/logs/ HTTP/1.1" 200 4227
+INFO 2025-04-03 15:47:37,628 basehttp "GET /api/logs/ HTTP/1.1" 200 4237
+INFO 2025-04-03 15:47:42,690 basehttp "GET /api/logs/ HTTP/1.1" 200 4234
+INFO 2025-04-03 15:47:47,749 basehttp "GET /api/logs/ HTTP/1.1" 200 4251
+INFO 2025-04-03 15:47:52,801 basehttp "GET /api/logs/ HTTP/1.1" 200 4255
+INFO 2025-04-03 15:47:57,851 basehttp "GET /api/logs/ HTTP/1.1" 200 4265
+INFO 2025-04-03 15:48:02,895 basehttp "GET /api/logs/ HTTP/1.1" 200 4262
+INFO 2025-04-03 15:48:07,950 basehttp "GET /api/logs/ HTTP/1.1" 200 4283
+INFO 2025-04-03 15:48:13,017 basehttp "GET /api/logs/ HTTP/1.1" 200 4291
+INFO 2025-04-03 15:48:18,076 basehttp "GET /api/logs/ HTTP/1.1" 200 4301
+INFO 2025-04-03 15:48:23,126 basehttp "GET /api/logs/ HTTP/1.1" 200 4298
+INFO 2025-04-03 15:48:28,177 basehttp "GET /api/logs/ HTTP/1.1" 200 4287
+INFO 2025-04-03 15:48:33,233 basehttp "GET /api/logs/ HTTP/1.1" 200 4246
+INFO 2025-04-03 15:48:38,285 basehttp "GET /api/logs/ HTTP/1.1" 200 4235
+INFO 2025-04-03 15:48:43,335 basehttp "GET /api/logs/ HTTP/1.1" 200 4218
+INFO 2025-04-03 15:48:48,384 basehttp "GET /api/logs/ HTTP/1.1" 200 4211
+INFO 2025-04-03 15:48:53,421 basehttp "GET /api/logs/ HTTP/1.1" 200 4198
+INFO 2025-04-03 15:48:58,468 basehttp "GET /api/logs/ HTTP/1.1" 200 4191

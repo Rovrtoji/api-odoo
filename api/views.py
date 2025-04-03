@@ -513,3 +513,134 @@ def update_asistencia_record(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=500)
+
+
+#crea servicios de usuarios
+@api_view(["GET"])
+def get_odoo_groups(request):
+    try:
+        token = request.headers.get("Authorization")
+        if not token:
+            return Response({"error": "Falta token"}, status=401)
+
+        # Cargar instancia de Redis o BD
+        instance_data = cache.get(f"odoo_instance_{token}")
+        if instance_data:
+            instance_data = json.loads(instance_data)
+        else:
+            try:
+                instance = OdooInstance.objects.get(token=token)
+                if instance.is_token_expierd():
+                    return Response({"error": "Token expirado"}, status=401)
+                instance_data = {
+                    "url": instance.url,
+                    "database": instance.database,
+                    "username": instance.username,
+                    "password": instance.password
+                }
+            except OdooInstance.DoesNotExist:
+                return Response({"error": "Token inválido"}, status=401)
+
+        # Conectarse a Odoo
+        common = xmlrpc.client.ServerProxy(f"{instance_data['url']}/xmlrpc/2/common")
+        uid = common.authenticate(instance_data["database"], instance_data["username"], instance_data["password"], {})
+        models = xmlrpc.client.ServerProxy(f"{instance_data['url']}/xmlrpc/2/object")
+
+        # Buscar todos los grupos
+        group_ids = models.execute_kw(
+            instance_data["database"], uid, instance_data["password"],
+            'res.groups', 'search', [[]]
+        )
+
+        groups = models.execute_kw(
+            instance_data["database"], uid, instance_data["password"],
+            'res.groups', 'read',
+            [group_ids], {'fields': ['id', 'name','display_name']}
+        )
+
+        return Response(groups)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@csrf_exempt
+@api_view(["POST"])
+def create_user_core(request):
+    try:
+        data = request.data
+        required = ["name", "login", "email", "password_new", "tipo"]
+        for r in required:
+            if r not in data:
+                return Response({"error": f"Falta el campo '{r}'"}, status=400)
+
+        token = request.headers.get("Authorization")
+        if not token:
+            return Response({"error": "Falta token"}, status=401)
+
+        instance_data = cache.get(f"odoo_instance_{token}")
+        if instance_data:
+            instance_data = json.loads(instance_data)
+        else:
+            try:
+                instance = OdooInstance.objects.get(token=token)
+                if instance.is_token_expierd():
+                    return Response({"error": "Token expirado"}, status=401)
+                instance_data = {
+                    "url": instance.url,
+                    "database": instance.database,
+                    "username": instance.username,
+                    "password": instance.password
+                }
+            except OdooInstance.DoesNotExist:
+                return Response({"error": "Token inválido"}, status=401)
+
+        # Conexión a Odoo
+        common = xmlrpc.client.ServerProxy(f"{instance_data['url']}/xmlrpc/2/common")
+        uid = common.authenticate(instance_data["database"], instance_data["username"], instance_data["password"], {})
+        models = xmlrpc.client.ServerProxy(f"{instance_data['url']}/xmlrpc/2/object")
+
+        # Obtener todos los grupos
+        group_ids = models.execute_kw(
+            instance_data["database"], uid, instance_data["password"],
+            'res.groups', 'search', [[]]
+        )
+        groups = models.execute_kw(
+            instance_data["database"], uid, instance_data["password"],
+            'res.groups', 'read',
+            [group_ids], {'fields': ['id', 'display_name']}
+        )
+
+        # Buscar grupos que coincidan con el tipo
+        tipo_buscado = f"/ {data['tipo']}".lower()
+        tipo_ids = [
+            g['id'] for g in groups if tipo_buscado in g['display_name'].lower()
+        ]
+
+        if not tipo_ids:
+            return Response({"error": f"No se encontraron grupos con tipo '{data['tipo']}'"}, status=404)
+
+        # Agregar grupo obligatorio con ID 1
+        all_group_ids = list(set(tipo_ids + [1]))
+
+        # Crear usuario
+        user_id = models.execute_kw(
+            instance_data["database"], uid, instance_data["password"],
+            'res.users', 'create', [{
+                'name': data['name'],
+                'login': data['login'],
+                'email': data['email'],
+                'password': data['password_new'],
+                'groups_id': [(6, 0, all_group_ids)]
+            }]
+        )
+
+        return Response({
+            "success": True,
+            "user_id": user_id,
+            "tipo": data["tipo"],
+            "grupos_asignados": all_group_ids
+        })
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
