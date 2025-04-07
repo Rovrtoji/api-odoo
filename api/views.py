@@ -7,31 +7,44 @@ from .utils import validate_json, validate_required_params
 from .models import OdooInstance
 from django.core.cache import cache
 from django.utils.timezone import now
-from datetime import timedelta
+from datetime import datetime, timedelta
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+import xmlrpc.client
+import pytz
+import logging
+logger = logging.getLogger(__name__)
+
 
 @csrf_exempt
 def get_records(request):
-    """ Endpoint para consultar registros en Odoo usando autenticación con expiración de tokens """
+    """ Endpoint para consultar registros en Odoo usando autenticación con logs """
     if request.method == "GET":
         token = request.headers.get("Authorization")
 
         if not token:
+            logger.warning("❌ Falta el token en la cabecera Authorization")
             return JsonResponse({"error": "Falta el token en la cabecera Authorization"}, status=401)
 
-        # 🔹 Intentamos obtener la instancia desde la caché (Redis)
+        logger.info(f"🔹 Token recibido: {token}")
+
+        # Intentar obtener la instancia desde Redis
         instance_data = cache.get(f"odoo_instance_{token}")
 
         if instance_data:
-            instance_data = json.loads(instance_data)  # Convertimos de JSON a diccionario
+            instance_data = json.loads(instance_data)
+            logger.info("✅ Instancia obtenida desde Redis")
         else:
             try:
                 instance = OdooInstance.objects.get(token=token)
                 if instance.is_token_expired():
+                    logger.warning(f"⚠ Token expirado: {token}")
                     return JsonResponse({"error": "El token ha expirado"}, status=401)
+
                 if instance.token_lifetime == "once":
                     instance.use_once_token()
+                    logger.info(f"🔄 Token de un solo uso eliminado: {token}")
 
-                # Guardamos la instancia en Redis como JSON
                 instance_data = {
                     "url": instance.url,
                     "database": instance.database,
@@ -39,8 +52,9 @@ def get_records(request):
                     "password": instance.password,
                 }
                 cache.set(f"odoo_instance_{token}", json.dumps(instance_data), timeout=600)
-
+                logger.info(f"📦 Instancia {instance.name} cargada y guardada en Redis")
             except OdooInstance.DoesNotExist:
+                logger.error(f"❌ Token inválido: {token}")
                 return JsonResponse({"error": "Token inválido"}, status=401)
 
         try:
@@ -49,12 +63,12 @@ def get_records(request):
             fields = request.GET.get("fields", "[]")
 
             if not model:
+                logger.warning("⚠ Falta el parámetro 'model'")
                 return JsonResponse({"error": 'El parámetro "model" es obligatorio'}, status=400)
 
             domain = json.loads(domain)
             fields = json.loads(fields)
 
-            # 🔹 Llamamos a Odoo usando la instancia correcta
             data = search_read(
                 instance_data["url"],
                 instance_data["database"],
@@ -65,35 +79,43 @@ def get_records(request):
                 fields
             )
 
+            logger.info(f"✅ Consulta realizada en Odoo para el modelo {model}")
             return JsonResponse({"data": data}, safe=False)
 
         except Exception as e:
+            logger.error(f"❌ Error en get_records: {e}")
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
+
+
 @csrf_exempt
 def create_record_view(request):
-    """ Endpoint para crear un registro en Odoo con validación de token """
+    """ Endpoint para crear un registro en Odoo con validación de token y logs """
     if request.method == "POST":
         token = request.headers.get("Authorization")
 
         if not token:
+            logger.warning("❌ Falta el token en la cabecera Authorization")
             return JsonResponse({"error": "Falta el token en la cabecera Authorization"}, status=401)
 
-        # 🔹 Obtener la instancia de Odoo desde Redis o la BD
         instance_data = cache.get(f"odoo_instance_{token}")
 
         if instance_data:
-            instance_data = json.loads(instance_data)  # Convertimos de JSON a diccionario
+            instance_data = json.loads(instance_data)
+            logger.info("✅ Instancia obtenida desde Redis")
         else:
             try:
                 instance = OdooInstance.objects.get(token=token)
                 if instance.is_token_expired():
+                    logger.warning(f"⚠ Token expirado: {token}")
                     return JsonResponse({"error": "El token ha expirado"}, status=401)
+
                 if instance.token_lifetime == "once":
                     instance.use_once_token()
+                    logger.info(f"🔄 Token de un solo uso eliminado: {token}")
 
                 instance_data = {
                     "url": instance.url,
@@ -102,18 +124,20 @@ def create_record_view(request):
                     "password": instance.password,
                 }
                 cache.set(f"odoo_instance_{token}", json.dumps(instance_data), timeout=600)
-
+                logger.info(f"📦 Instancia {instance.name} cargada y guardada en Redis")
             except OdooInstance.DoesNotExist:
+                logger.error(f"❌ Token inválido: {token}")
                 return JsonResponse({"error": "Token inválido"}, status=401)
+
         try:
             data = json.loads(request.body.decode("utf-8"))
             model = data.get("model")
             values = data.get("values", {})
 
             if not model or not values:
+                logger.warning("⚠ Faltan parámetros 'model' o 'values'")
                 return JsonResponse({"error": 'Faltan parámetros "model" o "values"'}, status=400)
 
-            # 🔹 Llamar a Odoo con conexión dinámica
             record_id = create_record(
                 instance_data["url"],
                 instance_data["database"],
@@ -123,9 +147,11 @@ def create_record_view(request):
                 values
             )
 
+            logger.info(f"✅ Registro creado en Odoo (ID: {record_id}) para el modelo {model}")
             return JsonResponse({"success": True, "record_id": record_id})
 
         except Exception as e:
+            logger.error(f"❌ Error en create_record_view: {e}")
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
@@ -318,12 +344,7 @@ def revoke_token_view(request):
 
     return JsonResponse({"error": "Método no permitido"}, status=405)
 
-
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-import xmlrpc.client
-from api.models import OdooInstance
-
+"""inicia logica para asistencia"""
 @api_view(["POST"])
 def verify_odoo_user(request):
     """ Endpoint para verificar si un usuario y contraseña existen en Odoo y obtener su nombre """
@@ -367,3 +388,259 @@ def verify_odoo_user(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=500)
+
+@api_view(["GET"])
+def get_asistencia_records(request):
+    """ Endpoint para obtener registros de asistencia del día actual """
+    try:
+        data = request.query_params
+        instance_name = data.get("instance_name")
+        login = data.get("login")
+        password = data.get("password")
+        timezone = data.get("timezone", "UTC")  # Permitir definir zona horaria
+
+        if not all([instance_name, login, password]):
+            return Response({"error": "Faltan parámetros: instance_name, login y password"}, status=400)
+
+        # 🔹 Buscar la instancia en la BD
+        try:
+            instance = OdooInstance.objects.get(name=instance_name)
+        except OdooInstance.DoesNotExist:
+            return Response({"error": "Instancia no encontrada"}, status=404)
+
+        # 🔹 Autenticación en Odoo
+        common = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/common")
+        uid = common.authenticate(instance.database, login, password, {})
+
+        if not uid:
+            return Response({"valid": False, "message": "Usuario o contraseña incorrectos"}, status=401)
+
+        # 🔹 Obtener la fecha actual con zona horaria
+        tz = pytz.timezone(timezone)
+        today_start = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0).strftime('%Y-%m-%d %H:%M:%S')
+        today_end = datetime.now(tz).replace(hour=23, minute=59, second=59, microsecond=999999).strftime('%Y-%m-%d %H:%M:%S')
+
+        # 🔹 Filtrar solo registros del día actual
+        models = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/object")
+        domain = [['horaIngreso', '>=', today_start], ['horaIngreso', '<', today_end]]
+        records = models.execute_kw(
+            instance.database, uid, password,
+            'asi.asistencia', 'search_read', [domain],
+            {'fields': ['name', 'empleadoId', 'horaIngreso','horaSalidaComida', 'horaSalida','horaRegresoComida','id']}
+        )
+
+        return Response({"data": records})
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["POST"])
+def create_asistencia_record(request):
+    """ Endpoint para crear un registro de asistencia """
+    try:
+        data = request.data
+        instance_name = data.get("instance_name")
+        login = data.get("login")
+        password = data.get("password")
+        values = data.get("values", {})
+
+        if not all([instance_name, login, password, values]):
+            return Response({"error": "Faltan parámetros: instance_name, login, password y values"}, status=400)
+
+        # 🔹 Buscar la instancia en la BD
+        try:
+            instance = OdooInstance.objects.get(name=instance_name)
+        except OdooInstance.DoesNotExist:
+            return Response({"error": "Instancia no encontrada"}, status=404)
+
+        # 🔹 Autenticación en Odoo
+        common = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/common")
+        uid = common.authenticate(instance.database, login, password, {})
+
+        if not uid:
+            return Response({"valid": False, "message": "Usuario o contraseña incorrectos"}, status=401)
+
+        # 🔹 Crear registro en Odoo
+        models = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/object")
+        record_id = models.execute_kw(
+            instance.database, uid, password,
+            'asi.asistencia', 'create', [values]
+        )
+
+        return Response({"success": True, "record_id": record_id})
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+@api_view(["PUT"])
+def update_asistencia_record(request):
+    """ Endpoint para actualizar un registro de asistencia SOLO del día actual """
+    try:
+        data = request.data
+        instance_name = data.get("instance_name")
+        login = data.get("login")
+        password = data.get("password")
+        record_id = data.get("id")
+        values = data.get("values", {})
+        timezone = data.get("timezone", "UTC")
+
+        if not all([instance_name, login, password, record_id, values]):
+            return Response({"error": "Faltan parámetros: instance_name, login, password, id y values"}, status=400)
+
+        # 🔹 Buscar la instancia en la BD
+        try:
+            instance = OdooInstance.objects.get(name=instance_name)
+        except OdooInstance.DoesNotExist:
+            return Response({"error": "Instancia no encontrada"}, status=404)
+
+        # 🔹 Autenticación en Odoo
+        common = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/common")
+        uid = common.authenticate(instance.database, login, password, {})
+
+        if not uid:
+            return Response({"valid": False, "message": "Usuario o contraseña incorrectos"}, status=401)
+
+        models = xmlrpc.client.ServerProxy(f"{instance.url}/xmlrpc/2/object")
+
+        # 🔹 Actualizar el registro
+        success = models.execute_kw(
+            instance.database, uid, password,
+            'asi.asistencia', 'write', [[record_id], values]
+        )
+
+        return Response({"success": success})
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+
+#crea servicios de usuarios
+@api_view(["GET"])
+def get_odoo_groups(request):
+    try:
+        token = request.headers.get("Authorization")
+        if not token:
+            return Response({"error": "Falta token"}, status=401)
+
+        # Cargar instancia de Redis o BD
+        instance_data = cache.get(f"odoo_instance_{token}")
+        if instance_data:
+            instance_data = json.loads(instance_data)
+        else:
+            try:
+                instance = OdooInstance.objects.get(token=token)
+                if instance.is_token_expierd():
+                    return Response({"error": "Token expirado"}, status=401)
+                instance_data = {
+                    "url": instance.url,
+                    "database": instance.database,
+                    "username": instance.username,
+                    "password": instance.password
+                }
+            except OdooInstance.DoesNotExist:
+                return Response({"error": "Token inválido"}, status=401)
+
+        # Conectarse a Odoo
+        common = xmlrpc.client.ServerProxy(f"{instance_data['url']}/xmlrpc/2/common")
+        uid = common.authenticate(instance_data["database"], instance_data["username"], instance_data["password"], {})
+        models = xmlrpc.client.ServerProxy(f"{instance_data['url']}/xmlrpc/2/object")
+
+        # Buscar todos los grupos
+        group_ids = models.execute_kw(
+            instance_data["database"], uid, instance_data["password"],
+            'res.groups', 'search', [[]]
+        )
+
+        groups = models.execute_kw(
+            instance_data["database"], uid, instance_data["password"],
+            'res.groups', 'read',
+            [group_ids], {'fields': ['id', 'name','display_name']}
+        )
+
+        return Response(groups)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@csrf_exempt
+@api_view(["POST"])
+def create_user_core(request):
+    try:
+        data = request.data
+        required = ["name", "login", "email", "password_new", "tipo"]
+        for r in required:
+            if r not in data:
+                return Response({"error": f"Falta el campo '{r}'"}, status=400)
+
+        token = request.headers.get("Authorization")
+        if not token:
+            return Response({"error": "Falta token"}, status=401)
+
+        instance_data = cache.get(f"odoo_instance_{token}")
+        if instance_data:
+            instance_data = json.loads(instance_data)
+        else:
+            try:
+                instance = OdooInstance.objects.get(token=token)
+                if instance.is_token_expierd():
+                    return Response({"error": "Token expirado"}, status=401)
+                instance_data = {
+                    "url": instance.url,
+                    "database": instance.database,
+                    "username": instance.username,
+                    "password": instance.password
+                }
+            except OdooInstance.DoesNotExist:
+                return Response({"error": "Token inválido"}, status=401)
+
+        # Conexión a Odoo
+        common = xmlrpc.client.ServerProxy(f"{instance_data['url']}/xmlrpc/2/common")
+        uid = common.authenticate(instance_data["database"], instance_data["username"], instance_data["password"], {})
+        models = xmlrpc.client.ServerProxy(f"{instance_data['url']}/xmlrpc/2/object")
+
+        # Obtener todos los grupos
+        group_ids = models.execute_kw(
+            instance_data["database"], uid, instance_data["password"],
+            'res.groups', 'search', [[]]
+        )
+        groups = models.execute_kw(
+            instance_data["database"], uid, instance_data["password"],
+            'res.groups', 'read',
+            [group_ids], {'fields': ['id', 'display_name']}
+        )
+
+        # Buscar grupos que coincidan con el tipo
+        tipo_buscado = f"/ {data['tipo']}".lower()
+        tipo_ids = [
+            g['id'] for g in groups if tipo_buscado in g['display_name'].lower()
+        ]
+
+        if not tipo_ids:
+            return Response({"error": f"No se encontraron grupos con tipo '{data['tipo']}'"}, status=404)
+
+        # Agregar grupo obligatorio con ID 1
+        all_group_ids = list(set(tipo_ids + [1]))
+
+        # Crear usuario
+        user_id = models.execute_kw(
+            instance_data["database"], uid, instance_data["password"],
+            'res.users', 'create', [{
+                'name': data['name'],
+                'login': data['login'],
+                'email': data['email'],
+                'password': data['password_new'],
+                'groups_id': [(6, 0, all_group_ids)]
+            }]
+        )
+
+        return Response({
+            "success": True,
+            "user_id": user_id,
+            "tipo": data["tipo"],
+            "grupos_asignados": all_group_ids
+        })
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
