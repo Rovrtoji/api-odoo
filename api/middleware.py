@@ -6,15 +6,23 @@ import json
 
 class OdooInstanceMiddleware:
     """ Middleware para autenticar instancias de Odoo con tokens y caché en Redis """
-    EXCLUDED_PATHS = ["/api/register_odoo_instance/", "/api/revoke_token/", "/api/verify_odoo_user/", "/api/get_asistencia_records/",
-                      "/api/create_asistencia_record/","/api/update_asistencia_record/","/api/logs/"]
+    EXCLUDED_PATHS = [
+        "/admin/",
+        "/api/register_odoo_instance/", 
+        "/api/revoke_token/", 
+        "/api/verify_odoo_user/", 
+        "/api/get_asistencia_records/",
+        "/api/create_asistencia_record/",
+        "/api/update_asistencia_record/",
+        "/api/logs/"
+    ]
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
 
-        if request.path in self.EXCLUDED_PATHS:
+        if any(request.path.startswith(p) for p in self.EXCLUDED_PATHS):
             return self.get_response(request)
 
         token = request.headers.get("Authorization")
