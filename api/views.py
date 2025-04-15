@@ -2,6 +2,7 @@ import uuid
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
+from api.serializers import CreateUserCoreSerializer
 from .odoo_client import search_read, create_record, update_record,delete_record
 from .utils import validate_json, validate_required_params
 from .models import OdooInstance
@@ -10,10 +11,20 @@ from django.utils.timezone import now
 from datetime import datetime, timedelta
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 import xmlrpc.client
 import pytz
 import logging
 logger = logging.getLogger(__name__)
+
+auth_header = openapi.Parameter(
+    'Authorization',
+    openapi.IN_HEADER,
+    description="Token de autenticación Odoo",
+    type=openapi.TYPE_STRING,
+    required=True
+)
 
 
 @csrf_exempt
@@ -564,6 +575,17 @@ def get_odoo_groups(request):
         return Response({"error": str(e)}, status=500)
 
 @csrf_exempt
+@swagger_auto_schema(
+    method="post",
+    manual_parameters=[auth_header],
+    request_body=CreateUserCoreSerializer,
+    responses={
+        201: openapi.Response(description="Usuario creado exitosamente"),
+        400: "Faltan parámetros o formato inválido",
+        401: "Token inválido o expirado",
+        500: "Error interno del servidor"
+    }
+)
 @api_view(["POST"])
 def create_user_core(request):
     try:

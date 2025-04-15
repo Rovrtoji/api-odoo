@@ -14,7 +14,8 @@ class OdooInstanceMiddleware:
         "/api/get_asistencia_records/",
         "/api/create_asistencia_record/",
         "/api/update_asistencia_record/",
-        "/api/logs/"
+        "/api/logs/",
+        "/swagger/",
     ]
 
     def __init__(self, get_response):
