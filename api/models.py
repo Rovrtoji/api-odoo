@@ -16,7 +16,7 @@ class OdooInstance(models.Model):
     token_lifetime = models.CharField(
         max_length=10,
         choices=[("once", "24 horas"), ("30d", "30 días"), ("60d", "60 días"), ("forever", "Para siempre")],
-        default="30d"
+        default="once"
     )
 
     # def generate_token(self, lifetime=None):

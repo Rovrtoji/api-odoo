@@ -6,3 +6,4 @@ python-dotenv==1.0.1
 django-redis==5.4.0
 django-cors-headers
 redis
+setuptools=78.1.0

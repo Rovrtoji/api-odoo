@@ -280,38 +280,54 @@ def delete_record_view(request):
     return JsonResponse({"error": "Método no permitido"}, status=405)
 
 
-#crear tokern de autenticacion para instancia de odoo
-@csrf_exempt
+register_schema = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    required=["name", "url", "database", "username", "password"],
+    properties={
+        "name": openapi.Schema(type=openapi.TYPE_STRING, description="Nombre de la instancia"),
+        "url": openapi.Schema(type=openapi.TYPE_STRING, description="URL de Odoo"),
+        "database": openapi.Schema(type=openapi.TYPE_STRING, description="Nombre de la base de datos"),
+        "username": openapi.Schema(type=openapi.TYPE_STRING, description="Usuario de Odoo"),
+        "password": openapi.Schema(type=openapi.TYPE_STRING, description="Contraseña de Odoo"),
+    }
+)
+
+@swagger_auto_schema(
+    method='post',
+    request_body=register_schema,
+    operation_description="Registra una nueva instancia de Odoo y devuelve un token válido.",
+    responses={200: openapi.Response('Token generado', schema=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={"success": openapi.Schema(type=openapi.TYPE_BOOLEAN),
+                    "token": openapi.Schema(type=openapi.TYPE_STRING)}
+    ))}
+)
+@api_view(["POST"])
 def register_odoo_instance(request):
-    """ Endpoint para registrar una nueva instancia de Odoo con contraseña encriptada """
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body.decode("utf-8"))
-            name = data.get("name")
-            url = data.get("url")
-            database = data.get("database")
-            username = data.get("username")
-            password = data.get("password")
+    try:
+        data = request.data
+        name = data.get("name")
+        url = data.get("url")
+        database = data.get("database")
+        username = data.get("username")
+        password = data.get("password")
 
-            if not all([name, url, database, username, password]):
-                return JsonResponse({"error": "Faltan parámetros"}, status=400)
+        if not all([name, url, database, username, password]):
+            return Response({"error": "Faltan parámetros"}, status=400)
 
-            # Crear instancia en la BD con la contraseña encriptada
-            instance, created = OdooInstance.objects.get_or_create(
-                name=name,
-                defaults={"url": url, "database": database, "username": username, "password": password}
-            )
+        instance, created = OdooInstance.objects.get_or_create(
+            name=name,
+            defaults={"url": url, "database": database, "username": username, "password": password}
+        )
 
-            if not created:
-                return JsonResponse({"error": "La instancia ya existe"}, status=400)
+        if not created:
+            return Response({"error": "La instancia ya existe"}, status=400)
 
-            instance.generate_token()  # Generar token automáticamente
-            return JsonResponse({"success": True, "token": instance.token})
+        instance.generate_token("24h")
+        return Response({"success": True, "token": instance.token})
 
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-
-    return JsonResponse({"error": "Método no permitido"}, status=405)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
 
 
 
