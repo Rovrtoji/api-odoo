@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Entorno virtual
+venv/
+ENV/
+env/
+.venv/
+
+# Archivos Django
+db.sqlite3
+*.log
+*.pot
+*.pyc
+*.pyo
+*.swp
+
+# Archivos de configuración local
+.env
+*.env
+local_settings.py
+
+# Archivos de log
+api_logs.log
+console.log
+
+# Archivos estáticos generados
+staticfiles/
+static/
+
+# Documentación o frontend embebido
+*.html
+*.css
+*.js
+*.map
+
+# VSCode y otros editores
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos de swagger/redoc
+drf-yasg/
+swagger-ui-dist/
+redoc/
+*.js
+*.min.js
+*.css
