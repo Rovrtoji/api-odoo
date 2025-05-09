@@ -8,3 +8,4 @@ django-redis==5.4.0
 gunicorn
 psycopg2-binary
 django-simple-history
+drf_yasg==1.21.6
