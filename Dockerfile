@@ -16,4 +16,4 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY . /app/
 
 # Comando para ejecutar el servidor
-CMD ["gunicorn", "DjangoProject.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["gunicorn", "DjangoProject.wsgi:application", "--bind", "0.0.0.0:8001"]
