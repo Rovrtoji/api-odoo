@@ -180,7 +180,7 @@ CORS_ALLOW_ALL_ORIGINS = True  # Solo si quieres restringir accesos
  #   "http://localhost:3000",  # Frontend en desarrollo
   #  "http://127.0.0.1:3000",  # Alternativa si usas esta IP
 #]
-CORS_ALLOW_CREDENTIALS = True  # Si necesitas autenticación
+CORS_ALLOW_CREDENTIALS = False  # Si necesitas autenticación
 
 CORS_ALLOW_METHODS = [
     "GET",
